@@ -33,98 +33,51 @@ def get_access_token():
  
 def get_weather(region):
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-                      'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36'
     }
-    key = config["weather_key"]
+    key = config["weather_key"]  # 从config中读取，而不是硬编码
     
-    # 使用你的自定义API Host
-    region_url = "https://p86r6xtbgw.re.qweatherapi.com/v2/city/lookup?location={}&key={}".format(region, key)
-    
-    print(f"请求地区查询URL: {region_url}")
-    
-    try:
-        # 先获取响应，不立即转换为JSON
-        response = get(region_url, headers=headers, timeout=10)
-        print(f"HTTP状态码: {response.status_code}")
-        print(f"响应内容前500字符: {response.text[:500]}")
-        
-        # 检查状态码
-        if response.status_code != 200:
-            print(f"HTTP请求失败: {response.status_code}")
-            print(f"完整响应: {response.text}")
-            return None, None, None
-        
-        # 检查响应内容是否为空
-        if not response.text.strip():
-            print("响应内容为空")
-            return None, None, None
-            
-        # 尝试解析JSON
-        data = response.json()
-        
-    except requests.exceptions.JSONDecodeError as e:
-        print(f"JSON解析失败: {e}")
-        print(f"原始响应内容: {response.text}")
-        return None, None, None
-    except Exception as e:
-        print(f"请求异常: {e}")
-        return None, None, None
-    
-    # 检查API返回码
-    if "code" not in data:
-        print("API返回格式异常")
-        print(f"返回的数据: {data}")
-        return None, None, None
-        
-    if data["code"] == "404":
-        print("推送消息失败，请检查地区名是否有误！")
-        return None, None, None
-    elif data["code"] == "401":
-        print("推送消息失败，请检查和风天气key是否正确！")
-        return None, None, None
-    elif data["code"] != "200":
-        print(f"API返回错误: {data}")
-        return None, None, None
-    else:
-        # 获取地区的location--id
-        location_id = data["location"][0]["id"]
-        print(f"获取到位置ID: {location_id}")
-    
-    weather_url = "https://p86r6xtbgw.re.qweatherapi.com/v7/weather/now?location={}&key={}".format(location_id, key)
-    
-    print(f"请求天气查询URL: {weather_url}")
+    # 直接使用城市名称查询天气（高德API支持直接使用城市名）
+    weather_url = "https://restapi.amap.com/v3/weather/weatherInfo"
+    weather_params = {
+        'key': key,
+        'city': region,  # 直接使用城市名称
+        'extensions': 'base',  # 实况天气
+        'output': 'json'
+    }
     
     try:
-        response = get(weather_url, headers=headers, timeout=10)
-        print(f"天气查询HTTP状态码: {response.status_code}")
-        print(f"天气查询响应内容前500字符: {response.text[:500]}")
+        # 请求天气API
+        response = get(weather_url, params=weather_params, headers=headers, timeout=10)
+        weather_data = response.json()
         
-        if response.status_code != 200:
-            print(f"天气查询失败，状态码: {response.status_code}")
-            print(f"完整响应: {response.text}")
+        # 检查请求状态
+        if weather_data["status"] != "1":
+            print(f"获取天气信息失败: {weather_data.get('info', '未知错误')}")
+            return None, None, None
+        
+        # 解析天气数据
+        lives = weather_data.get("lives", [])  # 这里修正了，添加了右括号
+        if not lives:
+            print("未找到天气信息")
             return None, None, None
             
-        data = response.json()
-    except requests.exceptions.JSONDecodeError as e:
-        print(f"天气数据JSON解析失败: {e}")
-        print(f"天气原始响应: {response.text}")
-        return None, None, None
+        current_weather = lives[0]
+        
+        # 提取所需天气信息
+        weather = current_weather["weather"]  # 天气现象
+        temp = current_weather["temperature"] + "°C"  # 温度
+        wind_dir = current_weather["winddirection"] + "风"  # 风向，加上"风"字更符合中文习惯
+        
+        print(f"获取到天气信息: {weather}, 温度: {temp}, 风向: {wind_dir}")
+        
+        return weather, temp, wind_dir
+        
     except Exception as e:
-        print(f"天气请求异常: {e}")
+        print(f"获取天气信息时出现异常: {e}")
         return None, None, None
-    
-    # 天气
-    weather = data["now"]["text"]
-    # 当前温度
-    temp = data["now"]["temp"] + u"\N{DEGREE SIGN}" + "C"
-    # 风向
-    wind_dir = data["now"]["windDir"]
-    
-    print(f"获取到天气信息: {weather}, 温度: {temp}, 风向: {wind_dir}")
-    
-    return weather, temp, wind_dir
- 
+
+
 def get_birthday(birthday, year, today):
     birthday_year = birthday.split("-")[0]
     # 判断是否为农历生日
