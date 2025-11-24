@@ -5,7 +5,7 @@ from datetime import datetime, date
 from zhdate import ZhDate
 import sys
 import os
- 
+
  
 def get_color():
     # 获取随机颜色
@@ -37,29 +37,93 @@ def get_weather(region):
                       'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36'
     }
     key = config["weather_key"]
+    
+    # 使用你的自定义API Host
     region_url = "https://p86r6xtbgw.re.qweatherapi.com/v2/city/lookup?location={}&key={}".format(region, key)
-    response = get(region_url, headers=headers).json()
-    if response["code"] == "404":
+    
+    print(f"请求地区查询URL: {region_url}")
+    
+    try:
+        # 先获取响应，不立即转换为JSON
+        response = get(region_url, headers=headers, timeout=10)
+        print(f"HTTP状态码: {response.status_code}")
+        print(f"响应内容前500字符: {response.text[:500]}")
+        
+        # 检查状态码
+        if response.status_code != 200:
+            print(f"HTTP请求失败: {response.status_code}")
+            print(f"完整响应: {response.text}")
+            return None, None, None
+        
+        # 检查响应内容是否为空
+        if not response.text.strip():
+            print("响应内容为空")
+            return None, None, None
+            
+        # 尝试解析JSON
+        data = response.json()
+        
+    except requests.exceptions.JSONDecodeError as e:
+        print(f"JSON解析失败: {e}")
+        print(f"原始响应内容: {response.text}")
+        return None, None, None
+    except Exception as e:
+        print(f"请求异常: {e}")
+        return None, None, None
+    
+    # 检查API返回码
+    if "code" not in data:
+        print("API返回格式异常")
+        print(f"返回的数据: {data}")
+        return None, None, None
+        
+    if data["code"] == "404":
         print("推送消息失败，请检查地区名是否有误！")
-        os.system("pause")
-        sys.exit(1)
-    elif response["code"] == "401":
+        return None, None, None
+    elif data["code"] == "401":
         print("推送消息失败，请检查和风天气key是否正确！")
-        os.system("pause")
-        sys.exit(1)
+        return None, None, None
+    elif data["code"] != "200":
+        print(f"API返回错误: {data}")
+        return None, None, None
     else:
         # 获取地区的location--id
-        location_id = response["location"][0]["id"]
+        location_id = data["location"][0]["id"]
+        print(f"获取到位置ID: {location_id}")
+    
     weather_url = "https://p86r6xtbgw.re.qweatherapi.com/v7/weather/now?location={}&key={}".format(location_id, key)
-    response = get(weather_url, headers=headers).json()
+    
+    print(f"请求天气查询URL: {weather_url}")
+    
+    try:
+        response = get(weather_url, headers=headers, timeout=10)
+        print(f"天气查询HTTP状态码: {response.status_code}")
+        print(f"天气查询响应内容前500字符: {response.text[:500]}")
+        
+        if response.status_code != 200:
+            print(f"天气查询失败，状态码: {response.status_code}")
+            print(f"完整响应: {response.text}")
+            return None, None, None
+            
+        data = response.json()
+    except requests.exceptions.JSONDecodeError as e:
+        print(f"天气数据JSON解析失败: {e}")
+        print(f"天气原始响应: {response.text}")
+        return None, None, None
+    except Exception as e:
+        print(f"天气请求异常: {e}")
+        return None, None, None
+    
     # 天气
-    weather = response["now"]["text"]
+    weather = data["now"]["text"]
     # 当前温度
-    temp = response["now"]["temp"] + u"\N{DEGREE SIGN}" + "C"
+    temp = data["now"]["temp"] + u"\N{DEGREE SIGN}" + "C"
     # 风向
-    wind_dir = response["now"]["windDir"]
+    wind_dir = data["now"]["windDir"]
+    
+    print(f"获取到天气信息: {weather}, 温度: {temp}, 风向: {wind_dir}")
+    
     return weather, temp, wind_dir
- 
  
 def get_birthday(birthday, year, today):
     birthday_year = birthday.split("-")[0]
