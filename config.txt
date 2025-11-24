@@ -1,7 +1,7 @@
 {
     "app_id": "wx361d7602f3a86522",
     "app_secret": "358ef222b8a026f2fcf0cedc3dd91e23",
-    "template_id": "LFKp_8TIbetFCOfMWOve2KTEkEV9_lCk_nXDR4Qumrs",
+    "template_id": "Nr03_mcKgDzQ2WxWSW1KrmaCfIyB_wVFwbkk1Plaa_U",
     "user": ["o7P352HnLyJ4eORnSMiEgiQGwdjE"],
     "weather_key": "6addf649779a3f94eefcc64b2d98a1bf",
     "region": "上海市",
@@ -11,6 +11,7 @@
     "note_ch": "",
     "note_en": ""
 }
+
 
 
 
