@@ -2,7 +2,7 @@
     "app_id": "wx361d7602f3a86522",
     "app_secret": "358ef222b8a026f2fcf0cedc3dd91e23",
     "template_id": "Nr03_mcKgDzQ2WxWSW1KrmaCfIyB_wVFwbkk1Plaa_U",
-    "user": ["o7P352HnLyJ4eORnSMiEgiQGwdjE", "o7P352AO8xlMElMSgbXoVBpb4Q10"],
+    "user": ["o7P352ByXFGkJheuAyHaSqyWp1Nw", "o7P352AO8xlMElMSgbXoVBpb4Q10"],
     "weather_key": "6addf649779a3f94eefcc64b2d98a1bf",
     "region": "上海市",
     "birthday1": {"name": "丁先生", "birthday": "2001-01-01"},
@@ -11,6 +11,7 @@
     "note_ch": "",
     "note_en": ""
 }
+
 
 
 
