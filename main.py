@@ -42,14 +42,16 @@ def get_weather(region):
     weather_params = {
         'key': key,
         'city': region,
-        'extensions': 'all',  # 改为'all'获取预报天气，包括今天和未来几天的预报
+        'extensions': 'all',  # 获取预报天气
         'output': 'json'
     }
     
     try:
+        # 请求天气API
         response = get(weather_url, params=weather_params, headers=headers, timeout=10)
         weather_data = response.json()
         
+        # 检查请求状态
         if weather_data["status"] != "1":
             print(f"获取天气信息失败: {weather_data.get('info', '未知错误')}")
             return None, None, None, None, None, None
@@ -70,15 +72,17 @@ def get_weather(region):
         # 明天天气（索引1）
         tomorrow_weather = casts[1]
         
-        # 提取今天天气信息
-        today_weather_text = today_weather["dayweather"]  # 白天天气
+        # 提取今天天气信息 - 使用正确的字段名
+        today_weather_text = today_weather["dayweather"]  # 白天天气现象
         today_temp = f"{today_weather['nighttemp']}~{today_weather['daytemp']}°C"  # 温度范围
-        today_wind_dir = today_weather.get("daywinddirection", "未知") + "风"  # 白天风向，使用get避免KeyError
+        
+        # 风向字段在预报API中可能是"daywind"
+        today_wind_dir = today_weather.get("daywind", "未知") + "风"
         
         # 提取明天天气信息
-        tomorrow_weather_text = tomorrow_weather["dayweather"]  # 白天天气
+        tomorrow_weather_text = tomorrow_weather["dayweather"]  # 白天天气现象
         tomorrow_temp = f"{tomorrow_weather['nighttemp']}~{tomorrow_weather['daytemp']}°C"  # 温度范围
-        tomorrow_wind_dir = tomorrow_weather.get("daywinddirection", "未知") + "风"  # 白天风向
+        tomorrow_wind_dir = tomorrow_weather.get("daywind", "未知") + "风"
         
         print(f"今天天气: {today_weather_text}, 温度: {today_temp}, 风向: {today_wind_dir}")
         print(f"明天天气: {tomorrow_weather_text}, 温度: {tomorrow_temp}, 风向: {tomorrow_wind_dir}")
