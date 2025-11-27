@@ -46,52 +46,95 @@ def get_weather(region):
         'output': 'json'
     }
     
-    try:
-        # 请求天气API
-        response = get(weather_url, params=weather_params, headers=headers, timeout=10)
-        weather_data = response.json()
-        
-        # 检查请求状态
-        if weather_data["status"] != "1":
-            print(f"获取天气信息失败: {weather_data.get('info', '未知错误')}")
-            return None, None, None, None, None, None
-        
-        # 解析预报数据
-        forecasts = weather_data.get("forecasts", [])
-        if not forecasts:
-            print("未找到天气预报信息")
-            return None, None, None, None, None, None
+    # 重试配置
+    max_retries = 3  # 最大重试次数
+    retry_delay = 2  # 重试延迟（秒）
+    
+    for attempt in range(max_retries):
+        try:
+            # 请求天气API，设置超时时间
+            response = get(weather_url, params=weather_params, headers=headers, timeout=10)
+            weather_data = response.json()
             
-        casts = forecasts[0].get("casts", [])
-        if len(casts) < 2:
-            print("天气预报数据不足")
-            return None, None, None, None, None, None
-        
-        # 今天天气（索引0）
-        today_weather = casts[0]
-        # 明天天气（索引1）
-        tomorrow_weather = casts[1]
-        
-        # 提取今天天气信息 - 使用正确的字段名
-        today_weather_text = today_weather["dayweather"]  # 白天天气现象
-        today_temp = f"{today_weather['nighttemp']}~{today_weather['daytemp']}°C"  # 温度范围
-        
-        # 风向字段在预报API中可能是"daywind"
-        today_wind_dir = today_weather.get("daywind", "未知") + "风"
-        
-        # 提取明天天气信息
-        tomorrow_weather_text = tomorrow_weather["dayweather"]  # 白天天气现象
-        tomorrow_temp = f"{tomorrow_weather['nighttemp']}~{tomorrow_weather['daytemp']}°C"  # 温度范围
-        tomorrow_wind_dir = tomorrow_weather.get("daywind", "未知") + "风"
-        
-        print(f"今天天气: {today_weather_text}, 温度: {today_temp}, 风向: {today_wind_dir}")
-        print(f"明天天气: {tomorrow_weather_text}, 温度: {tomorrow_temp}, 风向: {tomorrow_wind_dir}")
-        
-        return today_weather_text, today_temp, today_wind_dir, tomorrow_weather_text, tomorrow_temp, tomorrow_wind_dir
-        
-    except Exception as e:
-        print(f"获取天气信息时出现异常: {e}")
-        return None, None, None, None, None, None
+            # 检查请求状态
+            if weather_data["status"] != "1":
+                print(f"获取天气信息失败: {weather_data.get('info', '未知错误')}")
+                # 如果是最后一次尝试，返回None
+                if attempt == max_retries - 1:
+                    return None, None, None, None, None, None
+                else:
+                    print(f"第 {attempt+1} 次尝试失败，{retry_delay}秒后重试...")
+                    time.sleep(retry_delay)
+                    continue
+            
+            # 解析预报数据
+            forecasts = weather_data.get("forecasts", [])
+            if not forecasts:
+                print("未找到天气预报信息")
+                if attempt == max_retries - 1:
+                    return None, None, None, None, None, None
+                else:
+                    print(f"第 {attempt+1} 次尝试失败，{retry_delay}秒后重试...")
+                    time.sleep(retry_delay)
+                    continue
+                    
+            casts = forecasts[0].get("casts", [])
+            if len(casts) < 2:
+                print("天气预报数据不足")
+                if attempt == max_retries - 1:
+                    return None, None, None, None, None, None
+                else:
+                    print(f"第 {attempt+1} 次尝试失败，{retry_delay}秒后重试...")
+                    time.sleep(retry_delay)
+                    continue
+            
+            # 今天天气（索引0）
+            today_weather = casts[0]
+            # 明天天气（索引1）
+            tomorrow_weather = casts[1]
+            
+            # 提取今天天气信息
+            today_weather_text = today_weather["dayweather"]  # 白天天气现象
+            today_temp = f"{today_weather['nighttemp']}~{today_weather['daytemp']}°C"  # 温度范围
+            
+            # 风向字段在预报API中可能是"daywind"
+            today_wind_dir = today_weather.get("daywind", "未知") + "风"
+            
+            # 提取明天天气信息
+            tomorrow_weather_text = tomorrow_weather["dayweather"]  # 白天天气现象
+            tomorrow_temp = f"{tomorrow_weather['nighttemp']}~{tomorrow_weather['daytemp']}°C"  # 温度范围
+            tomorrow_wind_dir = tomorrow_weather.get("daywind", "未知") + "风"
+            
+            print(f"获取到天气信息: 今天 {today_weather_text}/{today_temp}/{today_wind_dir}, 明天 {tomorrow_weather_text}/{tomorrow_temp}/{tomorrow_wind_dir}")
+            
+            return today_weather_text, today_temp, today_wind_dir, tomorrow_weather_text, tomorrow_temp, tomorrow_wind_dir
+            
+        except requests.exceptions.Timeout:
+            print(f"第 {attempt+1} 次请求超时，{retry_delay}秒后重试...")
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay)
+            else:
+                print("已达到最大重试次数，天气信息获取失败")
+                return None, None, None, None, None, None
+                
+        except requests.exceptions.ConnectionError:
+            print(f"第 {attempt+1} 次连接错误，{retry_delay}秒后重试...")
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay)
+            else:
+                print("已达到最大重试次数，天气信息获取失败")
+                return None, None, None, None, None, None
+                
+        except Exception as e:
+            print(f"第 {attempt+1} 次请求出现异常: {e}")
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay)
+            else:
+                print("已达到最大重试次数，天气信息获取失败")
+                return None, None, None, None, None, None
+    
+    # 如果所有重试都失败
+    return None, None, None, None, None, None
 
 
 def get_birthday(birthday, year, today):
