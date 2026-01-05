@@ -321,11 +321,16 @@ if __name__ == "__main__":
 for user in users:
     send_message(user, accessToken, region, today_weather, today_temp, today_wind_dir, tomorrow_weather, tomorrow_temp, tomorrow_wind_dir, note_ch, note_en)
 
-# 替换掉原来的 os.system("pause")
+# ... （您的消息推送循环代码之后）...
+
 print("\n程序执行完毕。")
-if sys.platform.startswith('win'):
-    # 如果是Windows系统，使用pause
-    os.system("pause")
-else:
-    # 如果是Linux/Mac等系统，使用input等待回车
+
+# 替换掉原来的条件判断，使用更可靠的方法检测是否为交互式环境
+if sys.stdin.isatty():
+    # 这是一个“真”终端（比如用户在本地命令行手动运行），可以安全等待输入
     input("按回车键退出...")
+else:
+    # 这是非交互式环境（如GitHub Actions, 定时任务），直接退出，不等待
+    print("运行于非交互式环境，自动退出。")
+    # 可以选择在这里增加一个短暂延时，方便捕捉最后的日志
+    # time.sleep(1)
