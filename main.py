@@ -1,10 +1,12 @@
 import random
+import requests  # 【新增此行】必须导入整个requests模块，异常处理才有效
 from time import localtime
 from requests import get, post
 from datetime import datetime, date
 from zhdate import ZhDate
 import sys
 import os
+import time     # 【新增此行】确保time模块已导入，用于time.sleep()
 
  
 def get_color():
@@ -37,31 +39,30 @@ def get_weather(region):
     }
     key = config["weather_key"]
     
-    # 使用预报天气API，获取今天和明天的天气
     weather_url = "https://restapi.amap.com/v3/weather/weatherInfo"
     weather_params = {
         'key': key,
         'city': region,
-        'extensions': 'all',  # 获取预报天气
+        'extensions': 'all',
         'output': 'json'
     }
     
     # 重试配置
-    max_retries = 3  # 最大重试次数
-    retry_delay = 2  # 重试延迟（秒）
+    max_retries = 3
+    retry_delay = 2
     
     for attempt in range(max_retries):
         try:
-            # 请求天气API，设置超时时间
+            # 请求天气API
             response = get(weather_url, params=weather_params, headers=headers, timeout=10)
             weather_data = response.json()
             
-            # 检查请求状态
             if weather_data["status"] != "1":
-                print(f"获取天气信息失败: {weather_data.get('info', '未知错误')}")
-                # 如果是最后一次尝试，返回None
+                error_info = weather_data.get('info', '未知错误')
+                print(f"API返回业务错误: {error_info}")
+                # 如果是最后一次尝试，跳出循环，执行最后的降级返回
                 if attempt == max_retries - 1:
-                    return None, None, None, None, None, None
+                    break
                 else:
                     print(f"第 {attempt+1} 次尝试失败，{retry_delay}秒后重试...")
                     time.sleep(retry_delay)
@@ -72,7 +73,7 @@ def get_weather(region):
             if not forecasts:
                 print("未找到天气预报信息")
                 if attempt == max_retries - 1:
-                    return None, None, None, None, None, None
+                    break
                 else:
                     print(f"第 {attempt+1} 次尝试失败，{retry_delay}秒后重试...")
                     time.sleep(retry_delay)
@@ -82,7 +83,7 @@ def get_weather(region):
             if len(casts) < 2:
                 print("天气预报数据不足")
                 if attempt == max_retries - 1:
-                    return None, None, None, None, None, None
+                    break
                 else:
                     print(f"第 {attempt+1} 次尝试失败，{retry_delay}秒后重试...")
                     time.sleep(retry_delay)
@@ -96,8 +97,6 @@ def get_weather(region):
             # 提取今天天气信息
             today_weather_text = today_weather["dayweather"]  # 白天天气现象
             today_temp = f"{today_weather['nighttemp']}~{today_weather['daytemp']}°C"  # 温度范围
-            
-            # 风向字段在预报API中可能是"daywind"
             today_wind_dir = today_weather.get("daywind", "未知") + "风"
             
             # 提取明天天气信息
@@ -115,7 +114,7 @@ def get_weather(region):
                 time.sleep(retry_delay)
             else:
                 print("已达到最大重试次数，天气信息获取失败")
-                return None, None, None, None, None, None
+                break  # 跳出循环，执行最后的降级返回
                 
         except requests.exceptions.ConnectionError:
             print(f"第 {attempt+1} 次连接错误，{retry_delay}秒后重试...")
@@ -123,7 +122,7 @@ def get_weather(region):
                 time.sleep(retry_delay)
             else:
                 print("已达到最大重试次数，天气信息获取失败")
-                return None, None, None, None, None, None
+                break
                 
         except Exception as e:
             print(f"第 {attempt+1} 次请求出现异常: {e}")
@@ -131,10 +130,11 @@ def get_weather(region):
                 time.sleep(retry_delay)
             else:
                 print("已达到最大重试次数，天气信息获取失败")
-                return None, None, None, None, None, None
+                break
     
-    # 如果所有重试都失败
-    return None, None, None, None, None, None
+    # 【关键修改】如果所有重试都失败，或遇到业务错误，则返回一组安全的默认值
+    print("警告：天气信息获取失败，启用降级方案。")
+    return "数据更新中", "N/A", "N/A", "数据更新中", "N/A", "N/A"
 
 
 def get_birthday(birthday, year, today):
@@ -317,8 +317,15 @@ if __name__ == "__main__":
     if note_ch == "" and note_en == "":
         # 获取词霸每日金句
         note_ch, note_en = get_ciba()
-    # 公众号推送消息
-    for user in users:
-        # 修改这里：传递6个天气参数
-        send_message(user, accessToken, region, today_weather, today_temp, today_wind_dir, tomorrow_weather, tomorrow_temp, tomorrow_wind_dir, note_ch, note_en)
+# 公众号推送消息
+for user in users:
+    send_message(user, accessToken, region, today_weather, today_temp, today_wind_dir, tomorrow_weather, tomorrow_temp, tomorrow_wind_dir, note_ch, note_en)
+
+# 替换掉原来的 os.system("pause")
+print("\n程序执行完毕。")
+if sys.platform.startswith('win'):
+    # 如果是Windows系统，使用pause
     os.system("pause")
+else:
+    # 如果是Linux/Mac等系统，使用input等待回车
+    input("按回车键退出...")
